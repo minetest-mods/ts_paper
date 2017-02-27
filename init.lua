@@ -1,27 +1,33 @@
-local style =  "size[8,9]" ..
+local style = "size[8,9]" ..
 		default.gui_bg ..
 		default.gui_bg_img ..
 		default.gui_slots ..
 		"label[5,8.85;" .. minetest.colorize("#777777", "Signed letters cannot be edited!") .. "]"
 
 local paper_formspec = style ..
-		"label[0.25,0.25;Write a letter:]" ..
-		"textarea[0.5,1;7.5,7.5;text;;${text}]" ..
+		"label[0.25,0;Write a letter:]" ..
+		"label[0.25,0.75;Title:]" ..
+		"field[1.5,0.75;6.5,1.25;title;;${title}]" ..
+		"textarea[0.5,1.5;7.5,7.5;text;;${text}]" ..
 		"button[0.25,8;2,1;save;Save]" ..
 		"button[4.75,8;3,1;sign;Sign the letter]"
 
 local letter_formspec = style ..
-		"label[0.25,0.25;Edit the letter:]" ..
-		"textarea[0.5,1;7.5,7.5;text;;${text}]" ..
+		"label[0.25,0;Edit the letter:]" ..
+		"label[0.25,0.75;Title:]" ..
+		"field[1.5,0.75;6.5,1.25;title;;${title}]" ..
+		"textarea[0.5,1.5;7.5,7.5;text;;${text}]" ..
 		"button[0.25,8;2,1;save;Save]" ..
 		"button[4.75,8;3,1;sign;Sign the letter]"
 
 local signed_letter_formspec = style ..
-		"textarea[0.5,0.25;7.5,8.5;text;;${text}]"
+		"label[0.25,0.25;Title:]" ..
+		"field[1.5,0.25;6.5,1.25;title;;${title}]" ..
+		"textarea[0.5,1;7.5,8.2	5;text;;${text}]"
 
 local function save(pos, fields, sender)
 	local node = minetest.get_node(pos)
-	if fields.text == "" then
+	if fields.text == "" and fields.title == "" then
 		if node.name ~= "default:paper" then
 			node.name = "default:paper"
 			minetest.swap_node(pos, node)
@@ -34,6 +40,8 @@ local function save(pos, fields, sender)
 	end
 	local meta = minetest.get_meta(pos)
 	meta:set_string("text", fields.text)
+	meta:set_string("title", fields.title)
+	meta:set_string("description", "Letter: " .. fields.title)
 	meta:set_string("formspec", letter_formspec)
 end
 
@@ -113,20 +121,27 @@ minetest.register_node(":default:letter", {
 		end
 	end,
 	on_dig = function(pos, node, digger)
-		local meta = minetest.get_meta(pos)
+		local stack = ItemStack("default:letter")
+		stack:get_meta():from_table(minetest.get_meta(pos):to_table())
 		if digger:is_player() and digger:get_inventory() then
-			digger:get_inventory():add_item("main", {
-				name = "default:letter",
-				count = 1,
-				wear = 0,
-				metadata = minetest.serialize(meta:to_table())
-			})
+			local inv = digger:get_inventory()
+			if inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				minetest.add_item(digger:getpos(), stack)
+			end
 		end
 		minetest.remove_node(pos)
 	end,
 	after_place_node = function(pos, placer, itemstack, pointed_thing)
 		local meta = minetest.get_meta(pos)
-		meta:from_table(minetest.deserialize(itemstack:get_metadata()))
+		local stack_meta = itemstack:get_meta()
+		local old_meta = minetest.deserialize(itemstack:get_metadata())
+		if old_meta then
+			meta:from_table(old_meta)
+		else
+			meta:from_table(stack_meta:to_table())
+		end
 		meta:set_string("formspec", letter_formspec)
 	end
 })
@@ -157,20 +172,27 @@ minetest.register_node(":default:signed_letter", {
 		meta:set_string("formspec", style .. "label[0.5,1;" .. text .. "]label[0.25,8;Signed by " .. signed_by .. "]")
 	end,
 	on_dig = function(pos, node, digger)
-		local meta = minetest.get_meta(pos)
+		local stack = ItemStack("default:signed_letter")
+		stack:get_meta():from_table(minetest.get_meta(pos):to_table())
 		if digger:is_player() and digger:get_inventory() then
-			digger:get_inventory():add_item("main", {
-				name = "default:signed_letter",
-				count = 1,
-				wear = 0,
-				metadata = minetest.serialize(meta:to_table())
-			})
+			local inv = digger:get_inventory()
+			if inv:room_for_item("main", stack) then
+				inv:add_item("main", stack)
+			else
+				minetest.add_item(digger:getpos(), stack)
+			end
 		end
 		minetest.remove_node(pos)
 	end,
 	after_place_node = function(pos, placer, itemstack, pointed_thing)
 		local meta = minetest.get_meta(pos)
-		meta:from_table(minetest.deserialize(itemstack:get_metadata()))
+		local stack_meta = itemstack:get_meta()
+		local old_meta = minetest.deserialize(itemstack:get_metadata())
+		if old_meta then
+			meta:from_table(old_meta)
+		else
+			meta:from_table(stack_meta:to_table())
+		end
 		local signed_by = minetest.formspec_escape(meta:get_string("signed_by"))
 		meta:set_string("formspec", signed_letter_formspec .. "label[0.25,8;Signed by " .. signed_by .. "]")
 	end
@@ -179,13 +201,13 @@ minetest.register_node(":default:signed_letter", {
 minetest.register_craft({
 	type = "shapeless",
 	output = "default:letter",
-	recipe = {"default:paper", "default:letter"}
+	recipe = { "default:paper", "default:letter" }
 })
 
 minetest.register_craft({
 	type = "shapeless",
 	output = "default:signed_letter",
-	recipe = {"default:paper", "default:signed_letter"}
+	recipe = { "default:paper", "default:signed_letter" }
 })
 
 minetest.register_on_craft(function(itemstack, player, old_craft_grid, craft_inv)
