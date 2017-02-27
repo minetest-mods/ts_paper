@@ -26,23 +26,28 @@ local signed_letter_formspec = style ..
 		"textarea[0.5,1;7.5,8.2	5;text;;${text}]"
 
 local function save(pos, fields, sender)
+	local meta = minetest.get_meta(pos)
+	meta:set_string("text", fields.text)
+	meta:set_string("title", fields.title)
+	if fields.title == "" then
+		meta:set_string("description", "Letter")
+	else
+		meta:set_string("description", "Letter: " .. fields.title)
+	end
+	meta:set_string("formspec", letter_formspec)
 	local node = minetest.get_node(pos)
 	if fields.text == "" and fields.title == "" then
 		if node.name ~= "default:paper" then
 			node.name = "default:paper"
 			minetest.swap_node(pos, node)
+			meta:set_string("formspec", paper_formspec)
 		end
 		return
-	end
+end
 	if node.name ~= "default:letter" then
 		node.name = "default:letter"
 		minetest.swap_node(pos, node)
 	end
-	local meta = minetest.get_meta(pos)
-	meta:set_string("text", fields.text)
-	meta:set_string("title", fields.title)
-	meta:set_string("description", "Letter: " .. fields.title)
-	meta:set_string("formspec", letter_formspec)
 end
 
 local function sign(pos, sender)
@@ -52,9 +57,15 @@ local function sign(pos, sender)
 		minetest.swap_node(pos, node)
 	end
 	local meta = minetest.get_meta(pos)
-	meta:set_string("signed_by", sender:get_player_name())
-	local signed_by = minetest.formspec_escape(meta:get_string("signed_by"))
+	local name = sender:get_player_name()
+	meta:set_string("signed_by", name)
+	local signed_by = minetest.formspec_escape(name)
 	meta:set_string("formspec", signed_letter_formspec .. "label[0.25,8;Signed by " .. signed_by .. "]")
+	if fields.title == "" then
+		meta:set_string("description", "Letter signed by " .. name)
+	else
+		meta:set_string("description", "Letter signed by " .. name .. ": " .. fields.title)
+	end
 end
 
 minetest.register_node(":default:paper", {
