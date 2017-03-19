@@ -50,7 +50,7 @@ end
 	end
 end
 
-local function sign(pos, sender)
+local function sign(pos, fields, sender)
 	local node = minetest.get_node(pos)
 	if node.name ~= "default:signed_letter" then
 		node.name = "default:signed_letter"
@@ -95,7 +95,7 @@ minetest.register_node(":default:paper", {
 			save(pos, fields, sender)
 		elseif fields.sign then
 			save(pos, fields, sender)
-			sign(pos, sender)
+			sign(pos, fields, sender)
 		end
 	end,
 })
@@ -128,7 +128,7 @@ minetest.register_node(":default:letter", {
 			save(pos, fields, sender)
 		elseif fields.sign then
 			save(pos, fields, sender)
-			sign(pos, sender)
+			sign(pos, fields, sender)
 		end
 	end,
 	on_dig = function(pos, node, digger)
